@@ -1,19 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
-<menu xmlns:android="http://schemas.android.com/apk/res/android" >
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:gallery="http://schemas.android.com/apk/res-auto" >
 
-    <!-- Search Widget -->
-    <item
-        android:id="@+id/action_search"
-        android:actionViewClass="android.widget.SearchView"
-        android:icon="@drawable/ic_action_search"
-        android:showAsAction="ifRoom"
-        android:title="@string/action_search"/>
     <item
         android:id="@+id/menu_overflow"
         android:icon="@drawable/ic_action_overflow"
         android:orderInCategory="11111"
-        android:showAsAction="always"
-        android:title="@string/action_help">
+        android:title="@string/action_order"
+        gallery:showAsAction="always">
         <menu>
             <group android:checkableBehavior="single" >
 
@@ -21,20 +15,23 @@
                 <item
                     android:id="@+id/order_name"
                     android:checked="true"
-                    android:showAsAction="ifRoom"
-                    android:title="@string/order_name"/>
+                    android:orderInCategory="1"
+                    android:title="@string/order_name"
+                    gallery:showAsAction="always"/>
 
                 <!-- Date -->
                 <item
                     android:id="@+id/order_date"
-                    android:showAsAction="ifRoom"
-                    android:title="@string/order_date"/>
+                    android:orderInCategory="2"
+                    android:title="@string/order_date"
+                    gallery:showAsAction="always"/>
 
                 <!-- Size -->
                 <item
                     android:id="@+id/order_size"
-                    android:showAsAction="ifRoom"
-                    android:title="@string/order_size"/>
+                    android:orderInCategory="3"
+                    android:title="@string/order_size"
+                    gallery:showAsAction="always"/>
             </group>
         </menu>
     </item>
