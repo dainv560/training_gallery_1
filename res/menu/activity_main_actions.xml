@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android" >
+
+    <!-- Search Widget -->
+    <item
+        android:id="@+id/action_search"
+        android:actionViewClass="android.widget.SearchView"
+        android:icon="@drawable/ic_action_search"
+        android:showAsAction="ifRoom"
+        android:title="@string/action_search"/>
+    <item
+        android:id="@+id/menu_overflow"
+        android:icon="@drawable/ic_action_overflow"
+        android:orderInCategory="11111"
+        android:showAsAction="always"
+        android:title="@string/action_help">
+        <menu>
+            <group android:checkableBehavior="single" >
+
+                <!-- Name -->
+                <item
+                    android:id="@+id/order_name"
+                    android:checked="true"
+                    android:showAsAction="ifRoom"
+                    android:title="@string/order_name"/>
+
+                <!-- Date -->
+                <item
+                    android:id="@+id/order_date"
+                    android:showAsAction="ifRoom"
+                    android:title="@string/order_date"/>
+
+                <!-- Size -->
+                <item
+                    android:id="@+id/order_size"
+                    android:showAsAction="ifRoom"
+                    android:title="@string/order_size"/>
+            </group>
+        </menu>
+    </item>
+
+</menu>
