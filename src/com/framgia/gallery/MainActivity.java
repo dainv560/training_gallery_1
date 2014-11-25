@@ -2,13 +2,11 @@ package com.framgia.gallery;
 
 import java.util.ArrayList;
 
-import android.annotation.SuppressLint;
-import android.app.ActionBar;
-import android.app.Activity;
 import android.content.Intent;
 import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.os.Bundle;
+import android.os.Handler;
 import android.provider.MediaStore;
 import android.support.v7.app.ActionBar;
 import android.support.v7.app.ActionBarActivity;
@@ -33,37 +31,25 @@ public class MainActivity extends ActionBarActivity {
 	private static final String TYPE_NAME = "name";
 	private static final String TYPE_DATE = "date";
 	private static final String TYPE_SIZE = "size";
+	private static String current_order = TYPE_NAME;
+	private Handler handler = new Handler();
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_main);
 
-		adapter = new ImageAdapter(this, listImages);
+		handler.post(new Runnable() {
 
-		// final String[] columns = { MediaStore.Images.Media.DATA,
-		// MediaStore.Images.Media.TITLE };
-		// orderBy = MediaStore.Images.Media.TITLE;
-		// imageCursor = managedQuery(
-		// MediaStore.Images.Media.EXTERNAL_CONTENT_URI, columns, null,
-		// null, orderBy);
-		// int image_column_index = imageCursor
-		// .getColumnIndex(MediaStore.Images.Media._ID);
-		//
-		// this.count = imageCursor.getCount();
-		// this.arrPath = new String[this.count];
-		// for (int i = 0; i < this.count; i++) {
-		// imageCursor.moveToPosition(i);
-		// int id = imageCursor.getInt(image_column_index);
-		// int dataColumnIndex = imageCursor
-		// .getColumnIndex(MediaStore.Images.Media.DATA);
-		// listImages.add(MediaStore.Images.Thumbnails.getThumbnail(
-		// getApplicationContext().getContentResolver(), id,
-		// MediaStore.Images.Thumbnails.MICRO_KIND, null));
-		// arrPath[i] = imageCursor.getString(dataColumnIndex);
-		// }
+			@Override
+			public void run() {
+				setGridViewOrder(current_order);
+				adapter.updateNotifyDatasetChanged(imageCursor);
+			}
+		});
 
-		setGridViewOrder(TYPE_NAME);
+		adapter = new ImageAdapter(this, imageCursor);
+
 		// setup Gridview
 		setGridView();
 
@@ -75,7 +61,7 @@ public class MainActivity extends ActionBarActivity {
 	@SuppressWarnings("deprecation")
 	public void setGridViewOrder(String order) {
 		final String[] columns;
-		int image_column_index;
+		// int image_column_index;
 
 		listImages.clear();
 
@@ -87,8 +73,6 @@ public class MainActivity extends ActionBarActivity {
 			imageCursor = managedQuery(
 					MediaStore.Images.Media.EXTERNAL_CONTENT_URI, columns,
 					null, null, orderBy);
-			image_column_index = imageCursor
-					.getColumnIndex(MediaStore.Images.Media._ID);
 			break;
 		case TYPE_DATE:
 			columns = new String[] { MediaStore.Images.Media.DATA,
@@ -97,8 +81,6 @@ public class MainActivity extends ActionBarActivity {
 			imageCursor = managedQuery(
 					MediaStore.Images.Media.EXTERNAL_CONTENT_URI, columns,
 					null, null, orderBy);
-			image_column_index = imageCursor
-					.getColumnIndex(MediaStore.Images.Media._ID);
 			break;
 		case TYPE_SIZE:
 			columns = new String[] { MediaStore.Images.Media.DATA,
@@ -107,8 +89,7 @@ public class MainActivity extends ActionBarActivity {
 			imageCursor = managedQuery(
 					MediaStore.Images.Media.EXTERNAL_CONTENT_URI, columns,
 					null, null, orderBy);
-			image_column_index = imageCursor
-					.getColumnIndex(MediaStore.Images.Media._ID);
+
 			break;
 		default:
 			columns = new String[] { MediaStore.Images.Media.DATA,
@@ -117,23 +98,25 @@ public class MainActivity extends ActionBarActivity {
 			imageCursor = managedQuery(
 					MediaStore.Images.Media.EXTERNAL_CONTENT_URI, columns,
 					null, null, orderBy);
-			image_column_index = imageCursor
-					.getColumnIndex(MediaStore.Images.Media._ID);
 			break;
 		}
+		// image_column_index = imageCursor
+		// .getColumnIndex(MediaStore.Images.Media._ID);
 
 		this.count = imageCursor.getCount();
 		this.arrPath = new String[this.count];
 		for (int i = 0; i < this.count; i++) {
 			imageCursor.moveToPosition(i);
-			int id = imageCursor.getInt(image_column_index);
+			// int id = imageCursor.getInt(image_column_index);
 			int dataColumnIndex = imageCursor
 					.getColumnIndex(MediaStore.Images.Media.DATA);
-			listImages.add(MediaStore.Images.Thumbnails.getThumbnail(
-					getApplicationContext().getContentResolver(), id,
-					MediaStore.Images.Thumbnails.MICRO_KIND, null));
+			// listImages.add(MediaStore.Images.Thumbnails.getThumbnail(
+			// getApplicationContext().getContentResolver(), id,
+			// MediaStore.Images.Thumbnails.MICRO_KIND, null));
 			arrPath[i] = imageCursor.getString(dataColumnIndex);
 		}
+
+		// adapter.updateNotifyDatasetChanged(imageCursor);
 	}
 
 	public void setGridView() {
@@ -151,13 +134,15 @@ public class MainActivity extends ActionBarActivity {
 			public void onItemClick(AdapterView<?> parent, View view,
 					int position, long id) {
 				Intent intent = new Intent(getApplicationContext(),
-						ImageViewer.class);
+						ImageViewerActivity.class);
 				intent.putExtra("id", position);
-				intent.putExtra("path", arrPath[position]);
-				setResult(100, intent);
-
+				intent.putExtra("paths", arrPath);
+				intent.putExtra("length", count);
+				// setResult(100, intent);
+				startActivityForResult(intent, 100);
+				imageCursor.close();
+				listImages.clear();
 				finish();
-
 			}
 		});
 	}
@@ -167,46 +152,6 @@ public class MainActivity extends ActionBarActivity {
 		mActionBar = getSupportActionBar();
 		mActionBar.setDisplayShowHomeEnabled(true);
 		mActionBar.setDisplayShowTitleEnabled(false);
-		// mActionBar.setNavigationMode(ActionBar.NAVIGATION_MODE_LIST);
-		// LayoutInflater mInflater = LayoutInflater.from(this);
-
-		// SpinnerAdapter mSpinnerAdapter = ArrayAdapter.createFromResource(
-		// mActionBar.getThemedContext(), R.array.order_list,
-		// android.R.layout.simple_spinner_dropdown_item);
-		//
-		// ActionBar.OnNavigationListener navigationListener = new
-		// OnNavigationListener() {
-		//
-		// @Override
-		// public boolean onNavigationItemSelected(int itemPosition,
-		// long itemId) {
-		// Toast.makeText(getBaseContext(),
-		// "You selected : " + order_list[itemPosition],
-		// Toast.LENGTH_SHORT).show();
-		// return false;
-		// }
-		// };
-		//
-		// mActionBar.setListNavigationCallbacks(mSpinnerAdapter,
-		// navigationListener);
-		// View mCustomView = mInflater.inflate(R.layout.custom_actionbar,
-		// null);
-		// TextView mTitleTextView = (TextView) mCustomView
-		// .findViewById(R.id.title_text);
-		// mTitleTextView.setText("Gallery");
-		//
-		// ImageButton imageButton = (ImageButton) mCustomView
-		// .findViewById(R.id.imageButton);
-		// imageButton.setOnClickListener(new OnClickListener() {
-		//
-		// @Override
-		// public void onClick(View view) {
-		// Toast.makeText(getApplicationContext(), "Refresh Clicked!",
-		// Toast.LENGTH_LONG).show();
-		// }
-		// });
-
-		// mActionBar.setCustomView(mCustomView);
 		mActionBar.setDisplayShowCustomEnabled(true);
 	}
 
@@ -218,28 +163,54 @@ public class MainActivity extends ActionBarActivity {
 	}
 
 	@Override
+	protected boolean onPrepareOptionsPanel(View view, Menu menu) {
+		MenuItem item;
+		switch (current_order) {
+		case TYPE_NAME:
+			item = menu.findItem(R.id.order_name);
+			break;
+		case TYPE_DATE:
+			item = menu.findItem(R.id.order_date);
+			break;
+		case TYPE_SIZE:
+			item = menu.findItem(R.id.order_size);
+			break;
+		default:
+			item = menu.findItem(R.id.order_name);
+			break;
+		}
+		item.setChecked(true);
+		return super.onPrepareOptionsPanel(view, menu);
+	}
+
+	@Override
 	public boolean onOptionsItemSelected(MenuItem item) {
 		switch (item.getItemId()) {
-		case R.id.action_search:
-			return true;
 		case R.id.order_date:
 			item.setChecked(true);
 			setGridViewOrder(TYPE_DATE);
-			adapter.notifyDataSetChanged();
+			current_order = TYPE_DATE;
+			adapter.updateNotifyDatasetChanged(imageCursor);
 			return true;
 		case R.id.order_name:
 			item.setChecked(true);
 			setGridViewOrder(TYPE_NAME);
-			adapter.notifyDataSetChanged();
+			current_order = TYPE_NAME;
+			adapter.updateNotifyDatasetChanged(imageCursor);
 			return true;
 		case R.id.order_size:
 			setGridViewOrder(TYPE_SIZE);
-			adapter.notifyDataSetChanged();
+			current_order = TYPE_SIZE;
+			adapter.updateNotifyDatasetChanged(imageCursor);
 			item.setChecked(true);
 			return true;
 		default:
 			return super.onOptionsItemSelected(item);
 		}
+	}
+
+	public Cursor getImageCursor() {
+		return imageCursor;
 	}
 
 }

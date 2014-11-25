@@ -1,86 +1,148 @@
 package com.framgia.gallery;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 import android.content.Context;
+import android.database.Cursor;
 import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
-import android.view.LayoutInflater;
+import android.os.Handler;
+import android.provider.MediaStore;
+import android.util.Log;
 import android.view.View;
-import android.view.View.OnClickListener;
 import android.view.ViewGroup;
-import android.widget.ArrayAdapter;
-import android.widget.CheckBox;
+import android.widget.BaseAdapter;
 import android.widget.ImageView;
+import android.widget.ProgressBar;
+import android.widget.ViewSwitcher;
 
-public class ImageAdapter extends ArrayAdapter<Bitmap> {
+import com.framgia.gallery.ImageLoader.ImageLoadListener;
 
-	private LayoutInflater mInflator;
-	//private Context context;
+public class ImageAdapter extends BaseAdapter implements ImageLoadListener {
 
-	protected List<Bitmap> checkedList = new ArrayList<Bitmap>();
+	private static final int PROGRESSBARINDEX = 0;
+	private static final int IMAGEVIEWINDEX = 1;
+	private ImageLoader imageLoader;
+	private Context context;
+	private Cursor imageCursor;
+	private int count;
+	private int image_column_index;
+	private Handler handler = new Handler();
+	private ThreadPoolExecutor threadPool;
+	private static int NUMBER_OF_CORES = 5;
+	private static final int KEEP_ALIVE_TIME = 1;
+	private static final TimeUnit KEEP_ALIVE_TIME_UNIT = TimeUnit.SECONDS;
+	private final BlockingQueue<Runnable> mDecodeWorkQueue;
 
-	public ImageAdapter(Context context, ArrayList<Bitmap> listImages) {
-		super(context, R.layout.item_image, listImages);
-		//this.context = context;
+	public ImageAdapter(Context context, Cursor imageCursor) {
+		this.context = context;
+		this.imageCursor = imageCursor;
+		if (imageCursor != null) {
+			this.image_column_index = imageCursor
+					.getColumnIndex(MediaStore.Images.Media._ID);
 
-		mInflator = (LayoutInflater) getContext().getSystemService(
-				Context.LAYOUT_INFLATER_SERVICE);
+			this.count = imageCursor.getCount();
+		}
+
+		mDecodeWorkQueue = new LinkedBlockingQueue<Runnable>();
+		Log.e("number", NUMBER_OF_CORES + "");
+
+		this.threadPool = new ThreadPoolExecutor(NUMBER_OF_CORES,
+				NUMBER_OF_CORES, KEEP_ALIVE_TIME, KEEP_ALIVE_TIME_UNIT,
+				mDecodeWorkQueue);
+		threadPool.allowsCoreThreadTimeOut();
 	}
 
-	private static class ViewHolder {
-		public ImageView imgViewItem;
-		public CheckBox checkBox;
+	public Bitmap getItem(int pos) {
+		imageCursor.moveToPosition(pos);
+		int id = imageCursor.getInt(image_column_index);
+		return MediaStore.Images.Thumbnails.getThumbnail(
+				context.getContentResolver(), id,
+				MediaStore.Images.Thumbnails.MICRO_KIND, null);
+	}
+
+	public int getCount() {
+		return this.count;
 	}
 
 	@Override
 	public View getView(final int position, View convertView, ViewGroup parent) {
-		ViewHolder view;
+		final ViewSwitcher lViewSwitcher;
 
 		if (convertView == null) {
-			view = new ViewHolder();
-			convertView = mInflator.inflate(R.layout.item_image, parent, false);
+			lViewSwitcher = new ViewSwitcher(context);
 
-			view.imgViewItem = (ImageView) convertView
-					.findViewById(R.id.imageView);
-			view.checkBox = (CheckBox) convertView.findViewById(R.id.checkBox);
-//			int w = context.getResources().getDisplayMetrics().widthPixels;
-//			
-//			convertView.setLayoutParams(new GridView.LayoutParams(w/3-3, w/3-3));
+			ProgressBar lProgress = new ProgressBar(context);
+			lProgress.setLayoutParams(new ViewSwitcher.LayoutParams(80, 80));
+			lViewSwitcher.addView(lProgress);
+			ImageView lImage = new ImageView(context);
 
-			convertView.setTag(view);
+			lViewSwitcher.addView(lImage);
+
 		} else {
-			view = (ViewHolder) convertView.getTag();
+			lViewSwitcher = (ViewSwitcher) convertView;
 		}
 
-		if (getItem(position) != null) {
-//			BitmapFactory.Options options = new BitmapFactory.Options();
-//			options.inPurgeable = true;
+		final ImageView lImageView = (ImageView) lViewSwitcher.getChildAt(1);
+		lViewSwitcher.setDisplayedChild(PROGRESSBARINDEX);
+		try {
+			imageLoader = new ImageLoader(context, ImageAdapter.this, position,
+					imageCursor, lImageView, lViewSwitcher);
 
-			Bitmap bitmap = getItem(position);
-			view.imgViewItem.setImageBitmap(bitmap);
-		} else {
-			view.imgViewItem.setImageResource(R.drawable.ic_launcher);
+			threadPool.execute(imageLoader);
+		} catch (Exception e) {
+			e.printStackTrace();
 		}
 
-		view.checkBox.setOnClickListener(new OnClickListener() {
+		return lViewSwitcher;
+	}
 
-			public void onClick(View v) {
-				CheckBox cb = (CheckBox) v;
-				if (!cb.isChecked()) {
-					checkedList.remove(getItem(position));
-				} else {
-					checkedList.add(getItem(position));
-				}
+	@Override
+	public void handleImageLoaded(final ViewSwitcher aViewSwitcher,
+			final ImageView aImageView, final Bitmap aBitmap) {
+
+		handler.post(new Runnable() {
+			public void run() {
+				aImageView.setImageBitmap(aBitmap);
+				aViewSwitcher.setDisplayedChild(IMAGEVIEWINDEX);
 			}
 		});
+	}
 
-		view.checkBox.setChecked(checkedList.contains(getItem(position)));
-		view.checkBox.setVisibility(View.INVISIBLE);
+	@Override
+	protected synchronized void finalize() throws Throwable {
+		super.finalize();
 
-		// notifyDataSetChanged();
-		return convertView;
+		Runnable[] runnableArray = new Runnable[mDecodeWorkQueue.size()];
+		mDecodeWorkQueue.toArray(runnableArray);
+		int len = runnableArray.length;
+
+		synchronized (imageLoader) {
+			for (int runnableIndex = 0; runnableIndex < len; runnableIndex++) {
+				Thread thread = new Thread(runnableArray[runnableIndex]);
+				if (null != thread) {
+					thread.interrupt();
+				}
+			}
+		}
+	}
+
+	@Override
+	public long getItemId(int position) {
+		return position;
+	}
+
+	public void updateNotifyDatasetChanged(Cursor newImageCursor) {
+		if (this.imageCursor == null) {
+			this.image_column_index = newImageCursor
+					.getColumnIndex(MediaStore.Images.Media._ID);
+
+			this.count = newImageCursor.getCount();
+		}
+		this.imageCursor = newImageCursor;
+		notifyDataSetChanged();
 	}
 
 }
