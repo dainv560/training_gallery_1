@@ -3,33 +3,34 @@
 
     <string name="app_name">Gallery</string>
     <string name="hello_world">Hello world!</string>
+
     <string-array name="order_list">
         <item>Date</item>
         <item>Name</item>
         <item>Size</item>
     </string-array>
+
     <string name="order_date">Date</string>
     <string name="order_name">Name</string>
     <string name="order_size">Size</string>
     <string name="imageDescription">image</string>
-    
     <string name="action_search">Search</string>
     <string name="action_share">Share</string>
     <string name="action_info">Info</string>
     <string name="action_delete">Delete</string>
     <string name="action_order">Order</string>
-    
+    <string name="title_template_step">Step</string>
+
     <!-- Popup Image infor -->
     <string name="popup_title">Details</string>
     <string name="separate"> : </string>
     <string name="name">Name</string>
-    <string name ="date">Date created</string>
-    <string name ="size">Size</string>
+    <string name="date">Date created</string>
+    <string name="size">Size</string>
     <string name="type">Type</string>
     <string name="resolution">Resolution</string>
     <string name="maker">Maker</string>
     <string name="path">Path</string>
     <string name="iso">ISO</string>
-   
 
 </resources>
