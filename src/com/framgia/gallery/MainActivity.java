@@ -138,7 +138,6 @@ public class MainActivity extends ActionBarActivity {
 				intent.putExtra("id", position);
 				intent.putExtra("paths", arrPath);
 				intent.putExtra("length", count);
-				//intent.putExtra("type", current_order);
 				switch (current_order) {
 				case TYPE_NAME:
 					intent.putExtra("type", MediaStore.Images.Media.TITLE);
@@ -151,7 +150,6 @@ public class MainActivity extends ActionBarActivity {
 					break;
 				}
 
-				// setResult(100, intent);
 				startActivityForResult(intent, 100);
 				imageCursor.close();
 				listImages.clear();

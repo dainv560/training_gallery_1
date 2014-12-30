@@ -77,6 +77,8 @@ public class ScreenSlidePageFragment extends Fragment {
 
         return rootView;
     }
+    
+    
 
     /**
      * Returns the page number represented by this fragment object.
