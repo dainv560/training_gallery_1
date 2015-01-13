@@ -5,101 +5,111 @@ import java.io.IOException;
 
 import android.annotation.SuppressLint;
 import android.app.ActionBar;
-import android.app.ActionBar.LayoutParams;
-import android.app.Activity;
 import android.app.Dialog;
 import android.content.Intent;
+import android.content.res.Resources;
+import android.database.Cursor;
 import android.media.ExifInterface;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
+import android.provider.MediaStore;
+import android.support.v4.app.Fragment;
+import android.support.v4.app.FragmentActivity;
+import android.support.v4.app.FragmentManager;
+import android.support.v4.app.FragmentStatePagerAdapter;
 import android.support.v4.app.NavUtils;
 import android.support.v4.app.TaskStackBuilder;
+import android.support.v4.view.PagerAdapter;
+import android.support.v4.view.ViewPager;
+import android.util.DisplayMetrics;
 import android.view.KeyEvent;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.MotionEvent;
 import android.view.View;
-import android.view.animation.Animation;
-import android.view.animation.AnimationUtils;
-import android.widget.ImageSwitcher;
-import android.widget.ImageView;
-import android.widget.ProgressBar;
+import android.view.View.OnTouchListener;
+import android.view.WindowManager.LayoutParams;
+import android.widget.AdapterView;
+import android.widget.AdapterView.OnItemClickListener;
+import android.widget.Gallery;
 import android.widget.TextView;
-import android.widget.ViewSwitcher;
-import android.widget.ViewSwitcher.ViewFactory;
 
-import com.framgia.gallery.SimpleGestureFilter.SimpleGestureListener;
+public class ImageViewerActivity extends FragmentActivity {
 
-public class ImageViewerActivity extends Activity implements
-		SimpleGestureListener {
+	public static final String ID = "id";
+	public static final String PATH = "paths";
+	public static final String LENGTH = "length";
+	public static final String TYPE = "type";
 
-	private static final int PROGRESSBARINDEX = 0;
-	private static final int IMAGEVIEWINDEX = 1;
-	private ImageSwitcher imageSwitcher;
-	private SimpleGestureFilter detector;
-	private Animation inFade;
-	private Animation outFade;
-	private Animation inLeft, outLeft, inRight, outRight;
 	private int id;
 	private String[] paths;
-	private ActionBar mActionBar;
-	private ViewSwitcher viewSwitcher;
+	private static ActionBar mActionBar;
 	private Handler handler = new Handler();
 	private int length;
 	private Dialog dialogInfor;
+	@SuppressWarnings("deprecation")
+	private static Gallery gallery;
+	private String typeOrder;
+	private Cursor imageCursor;
+	private Resources resources;
+	public static int GALLERY_HEIGHT_RATIO = 6;
+	private ViewPager mPager;
+	private PagerAdapter mPagerAdapter;
+	private static boolean showGallery = true;
+	private int screenHeight = 0;
+	private int screenWidth = 0;
+	private static float xCor = 0;
+	private static float yCor = 0;
 
+	@SuppressWarnings("deprecation")
 	@SuppressLint("NewApi")
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.image_viewer_layout);
 
+		final DisplayMetrics displayMetrics = new DisplayMetrics();
+		getWindowManager().getDefaultDisplay().getMetrics(displayMetrics);
+		screenHeight = displayMetrics.heightPixels;
+		screenWidth = displayMetrics.widthPixels;
+
 		// Get extra data from previous activity
 		Intent intent = getIntent();
-		id = intent.getIntExtra("id", 0);
-		paths = intent.getStringArrayExtra("paths");
-		length = intent.getIntExtra("length", 0);
-		detector = new SimpleGestureFilter(this, this);
+		id = intent.getIntExtra(ID, 0);
+		paths = intent.getStringArrayExtra(PATH);
+		length = intent.getIntExtra(LENGTH, 0);
+		typeOrder = intent.getStringExtra(TYPE);
+
+		getWindow().addFlags(LayoutParams.FLAG_FULLSCREEN);
+
+		// setting actionBar
 		mActionBar = getActionBar();
 		mActionBar.setDisplayHomeAsUpEnabled(true);
-		viewSwitcher = (ViewSwitcher) findViewById(R.id.viewSwitcher);
+
+		final String[] columns = new String[] { MediaStore.Images.Media.DATA,
+				MediaStore.Images.Media._ID };
+		imageCursor = managedQuery(
+				MediaStore.Images.Media.EXTERNAL_CONTENT_URI, columns, null,
+				null, typeOrder);
+
+		// viewSwitcher = (ViewSwitcher) findViewById(R.id.viewSwitcher);
 		dialogInfor = new Dialog(ImageViewerActivity.this);
 		dialogInfor.setContentView(R.layout.popup_info);
 		dialogInfor.setTitle(R.string.popup_title);
 
-		inFade = AnimationUtils.loadAnimation(this, R.anim.fade_in);
-		outFade = AnimationUtils.loadAnimation(this, R.anim.fade_out);
-		inLeft = AnimationUtils.loadAnimation(this, R.anim.left_in);
-		outLeft = AnimationUtils.loadAnimation(this, R.anim.left_out);
-		inRight = AnimationUtils.loadAnimation(this, R.anim.right_in);
-		outRight = AnimationUtils.loadAnimation(this, R.anim.right_out);
+		setBottomGallery();
 
-		imageSwitcher = new ImageSwitcher(getApplicationContext());
+		// setting viewPager
+		setViewPager();
 
-		imageSwitcher = (ImageSwitcher) findViewById(R.id.imageSwitcher);
+		mActionBar.hide();
+		gallery.setVisibility(View.GONE);
 
-		imageSwitcher.setFactory(new ViewFactory() {
+		// gallery.setOnItemSelectedListener(this);
 
-			@SuppressWarnings("deprecation")
-			@Override
-			public View makeView() {
-				ImageView imageView = new ImageView(getApplicationContext());
-				imageView.setScaleType(ImageView.ScaleType.FIT_CENTER);
-				imageView.setLayoutParams(new ImageSwitcher.LayoutParams(
-						LayoutParams.FILL_PARENT, LayoutParams.FILL_PARENT));
-				return imageView;
-			}
-		});
-
-		setImageView(id);
-	}
-
-	@Override
-	public boolean dispatchTouchEvent(MotionEvent me) {
-		this.detector.onTouchEvent(me);
-		return super.dispatchTouchEvent(me);
+		// setImageView(id);
 	}
 
 	@Override
@@ -109,6 +119,30 @@ public class ImageViewerActivity extends Activity implements
 		return super.onCreateOptionsMenu(menu);
 	}
 
+	/**
+	 * Setup the bottom Gallery in ImageViewer Activity
+	 */
+	public void setBottomGallery() {
+		resources = getResources();
+		gallery = (Gallery) findViewById(R.id.galleryView);
+		DisplayMetrics metrics = new DisplayMetrics();
+		metrics = resources.getDisplayMetrics();
+
+		int height = metrics.heightPixels;
+		gallery.getLayoutParams().height = (int) height / GALLERY_HEIGHT_RATIO;
+		gallery.setAdapter(new BottomImageAdapter(ImageViewerActivity.this,
+				imageCursor, resources));
+		gallery.setOnItemClickListener(new OnItemClickListener() {
+
+			@Override
+			public void onItemClick(AdapterView<?> parent, View view,
+					int position, long id) {
+				// setImageView(position);
+			}
+		});
+	}
+
+	@SuppressLint("NewApi")
 	@SuppressWarnings("deprecation")
 	@Override
 	public boolean onOptionsItemSelected(MenuItem item) {
@@ -162,6 +196,16 @@ public class ImageViewerActivity extends Activity implements
 			}
 			dialogInfor.show();
 			return true;
+		case R.id.action_share:
+			showGallery = !showGallery;
+			if (showGallery) {
+				mActionBar.show();
+				gallery.setVisibility(View.VISIBLE);
+			} else {
+				mActionBar.hide();
+				gallery.setVisibility(View.GONE);
+			}
+			return true;
 		}
 		return super.onOptionsItemSelected(item);
 	}
@@ -186,55 +230,21 @@ public class ImageViewerActivity extends Activity implements
 		return super.onKeyDown(keyCode, event);
 	}
 
-	@Override
-	public void onSwipe(int direction) {
-
-		switch (direction) {
-
-		case SimpleGestureFilter.SWIPE_RIGHT:
-			if (--id < 0) {
-				id = length - 1;
-			}
-			imageSwitcher.setInAnimation(inLeft);
-			imageSwitcher.setOutAnimation(outRight);
-			break;
-		case SimpleGestureFilter.SWIPE_LEFT:
-			if (++id > length - 1) {
-				id = 0;
-			}
-			imageSwitcher.setInAnimation(inRight);
-			imageSwitcher.setOutAnimation(outLeft);
-			break;
-		case SimpleGestureFilter.SWIPE_DOWN:
-			break;
-		case SimpleGestureFilter.SWIPE_UP:
-			break;
-
-		}
-		setImageView(id);
-	}
-
 	private void setImageView(final int id) {
-		// if (imageSwitcher)
-		viewSwitcher = new ViewSwitcher(getApplicationContext());
-
-		ProgressBar lProgress = new ProgressBar(getApplicationContext());
-		lProgress.setLayoutParams(new ViewSwitcher.LayoutParams(80, 80));
-		viewSwitcher.addView(lProgress);
-		viewSwitcher.setDisplayedChild(PROGRESSBARINDEX);
 
 		new Thread(new Runnable() {
 
 			@Override
 			public void run() {
-				final Uri uri = Uri.fromFile(new File(paths[id]));
+				Uri.fromFile(new File(paths[id]));
 				handler.post(new Runnable() {
 
 					@Override
 					public void run() {
 
 						// imageSwitcher.getDrawingCache().recycle();
-						imageSwitcher.setImageURI(uri);
+						// imageSwitcher.reset();
+						// imageSwitcher.setImageURI(uri);
 					}
 				});
 			}
@@ -242,10 +252,81 @@ public class ImageViewerActivity extends Activity implements
 
 	}
 
-	@Override
-	public void onDoubleTap() {
-		// TODO Auto-generated method stub
+	// -------------------
+	private class ScreenSlidePagerAdapter extends FragmentStatePagerAdapter {
+		private final int size;
 
+		public ScreenSlidePagerAdapter(FragmentManager fm, int size) {
+			super(fm);
+			this.size = size;
+		}
+
+		@Override
+		public int getCount() {
+			return size;
+		}
+
+		@Override
+		public Fragment getItem(int position) {
+
+			return ImageDetailFragment.newInstance(ImageViewerActivity.this,
+					paths[position], screenHeight, screenWidth);
+		}
+	}
+
+	@SuppressLint("NewApi")
+	public void showActionbar(boolean showGallery) {
+		if (showGallery) {
+			mActionBar.show();
+			gallery.setVisibility(View.VISIBLE);
+		} else {
+			mActionBar.hide();
+			gallery.setVisibility(View.GONE);
+		}
+	}
+
+	public void setViewPager() {
+		mPager = (ViewPager) findViewById(R.id.viewPager);
+		mPagerAdapter = new ScreenSlidePagerAdapter(
+				getSupportFragmentManager(), length);
+		mPager.setAdapter(mPagerAdapter);
+		mPager.setPageMargin((int) getResources().getDimension(
+				R.dimen.horizontal_page_margin));
+		mPager.setOffscreenPageLimit(2);
+		mPager.setOnPageChangeListener(new ViewPager.SimpleOnPageChangeListener() {
+			@SuppressLint("NewApi")
+			@Override
+			public void onPageSelected(int position) {
+				invalidateOptionsMenu();
+			}
+		});
+
+		mPager.setOnTouchListener(new OnTouchListener() {
+
+			@SuppressLint("ClickableViewAccessibility")
+			@Override
+			public boolean onTouch(View v, MotionEvent event) {
+
+				if (event.getAction() == MotionEvent.ACTION_DOWN) {
+					xCor = event.getX();
+					yCor = event.getY();
+				}
+
+				if (event.getAction() == MotionEvent.ACTION_MOVE) {
+					return false;
+				}
+				if (event.getAction() == MotionEvent.ACTION_UP) {
+					if ((event.getX() - xCor) > screenWidth * 0.02
+							|| (event.getY() - yCor) > screenHeight * 0.02) {
+						return false;
+					}
+					showGallery = !showGallery;
+					showActionbar(showGallery);
+				}
+
+				return false;
+			}
+		});
 	}
 
 }

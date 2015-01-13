@@ -1,14 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ViewSwitcher xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/viewSwitcher"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@android:color/background_dark" >
+    android:background="@android:color/background_dark"
+    android:orientation="vertical" >
 
-    <ImageSwitcher
-        android:id="@+id/imageSwitcher"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent" >
-    </ImageSwitcher>
+    <android.support.v4.view.ViewPager
+        xmlns:android="http://schemas.android.com/apk/res/android"
+        android:id="@+id/viewPager"
+        android:layout_alignParentTop="true"
+        android:layout_width="fill_parent"
+        android:layout_height="fill_parent" />
 
-</ViewSwitcher>
+    <Gallery
+        android:id="@+id/galleryView"
+        android:layout_width="fill_parent"
+        android:layout_height="60dip"
+        android:layout_alignParentBottom="true"
+        android:background="#55000000"
+        android:gravity="center_vertical"
+        android:spacing="3dip" />
+
+</RelativeLayout>

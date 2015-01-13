@@ -15,6 +15,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.BaseAdapter;
 import android.widget.ImageView;
+import android.widget.ImageView.ScaleType;
 import android.widget.ProgressBar;
 import android.widget.ViewSwitcher;
 
@@ -47,7 +48,6 @@ public class ImageAdapter extends BaseAdapter implements ImageLoadListener {
 		}
 
 		mDecodeWorkQueue = new LinkedBlockingQueue<Runnable>();
-		Log.e("number", NUMBER_OF_CORES + "");
 
 		this.threadPool = new ThreadPoolExecutor(NUMBER_OF_CORES,
 				NUMBER_OF_CORES, KEEP_ALIVE_TIME, KEEP_ALIVE_TIME_UNIT,
@@ -60,7 +60,7 @@ public class ImageAdapter extends BaseAdapter implements ImageLoadListener {
 		int id = imageCursor.getInt(image_column_index);
 		return MediaStore.Images.Thumbnails.getThumbnail(
 				context.getContentResolver(), id,
-				MediaStore.Images.Thumbnails.MICRO_KIND, null);
+				MediaStore.Images.Thumbnails.FULL_SCREEN_KIND, null);
 	}
 
 	public int getCount() {
@@ -77,7 +77,8 @@ public class ImageAdapter extends BaseAdapter implements ImageLoadListener {
 			ProgressBar lProgress = new ProgressBar(context);
 			lProgress.setLayoutParams(new ViewSwitcher.LayoutParams(80, 80));
 			lViewSwitcher.addView(lProgress);
-			ImageView lImage = new ImageView(context);
+			OptimizerImageView lImage = new OptimizerImageView(context);
+			//lImage.setScaleType(ScaleType.FIT_XY);
 
 			lViewSwitcher.addView(lImage);
 

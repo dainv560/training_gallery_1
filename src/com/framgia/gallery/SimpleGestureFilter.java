@@ -1,9 +1,14 @@
 package com.framgia.gallery;
 
 import android.app.Activity;
+import android.content.Context;
+import android.graphics.Point;
+import android.util.Log;
+import android.view.Display;
 import android.view.GestureDetector;
 import android.view.GestureDetector.SimpleOnGestureListener;
 import android.view.MotionEvent;
+import android.view.WindowManager;
 
 public class SimpleGestureFilter extends SimpleOnGestureListener {
 	public final static int SWIPE_UP = 1;
@@ -100,6 +105,19 @@ public class SimpleGestureFilter extends SimpleOnGestureListener {
 
 		final float xDistance = Math.abs(e1.getX() - e2.getX());
 		final float yDistance = Math.abs(e1.getY() - e2.getY());
+
+		WindowManager wm = (WindowManager) context
+				.getSystemService(Context.WINDOW_SERVICE);
+		Display display = wm.getDefaultDisplay();
+		@SuppressWarnings("deprecation")
+		int height = display.getHeight();
+
+		// Log.e("touch X", e1.getY()+"");
+		// Log.e("height", (height - ImageViewerActivity.GALLERY_HEIGHT) +" ");
+
+		if (e1.getY() > height - height
+				/ ImageViewerActivity.GALLERY_HEIGHT_RATIO)
+			return false;
 
 		if (xDistance > this.swipe_Max_Distance
 				|| yDistance > this.swipe_Max_Distance)
